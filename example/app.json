@@ -1,0 +1,22 @@
+{
+  "name": "client-sdk-example",
+  "displayName": "ClientSdk Example",
+  "expo": {
+    "name": "client-sdk-example",
+    "slug": "client-sdk-example",
+    "description": "Example app for client-sdk",
+    "privacy": "public",
+    "version": "1.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
