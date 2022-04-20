@@ -11,11 +11,8 @@ npm install client-sdk
 ## Usage
 
 ```js
-import { multiply } from "client-sdk";
+import {makeClient} from ixo-client-sdk-react-native
 
-// ...
-
-const result = await multiply(3, 7);
 ```
 
 ## Contributing
