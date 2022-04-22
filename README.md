@@ -11,11 +11,8 @@ npm install client-sdk
 ## Usage
 
 ```js
-import { multiply } from "client-sdk";
+import { makeClient, makeWallet } from 'client-sdk';
 
-// ...
-
-const result = await multiply(3, 7);
 ```
 
 ## Contributing
