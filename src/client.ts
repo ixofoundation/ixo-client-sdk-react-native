@@ -35,8 +35,11 @@ let GlobalSigner: any = null;
 
 export function makeClient(
   signer = GlobalSigner,
-  { blockchainUrl = '', blocksyncUrl = '' },
-  doDashifyUrl: any
+  doDashifyUrl?: any,
+  {
+    blockchainUrl,
+    blocksyncUrl,
+  }: { blockchainUrl?: string; blocksyncUrl?: string } = {}
 ) {
   blockchainUrl = GlobalBlockchainUrl;
   blocksyncUrl = GlobalBlocksyncUrl;
