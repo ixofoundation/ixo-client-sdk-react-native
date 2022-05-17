@@ -1,6 +1,6 @@
 {
   "name": "ixo-client-sdk-react-native",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "The IXO client-sdk library for react native",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",

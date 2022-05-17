@@ -34,16 +34,18 @@ let GlobaldashifyUrls =
 let GlobalSigner: any = null;
 
 export function makeClient(
-  signer = GlobalSigner,
-  doDashifyUrl?: any,
-  {
-    blockchainUrl,
-    blocksyncUrl,
-  }: { blockchainUrl?: string; blocksyncUrl?: string } = {}
+  signer: any,
+  blockchainUrl?: string,
+  blocksyncUrl?: string,
+  dashifyUrls: boolean = false
 ) {
-  blockchainUrl = GlobalBlockchainUrl;
-  blocksyncUrl = GlobalBlocksyncUrl;
-  GlobaldashifyUrls = doDashifyUrl;
+  GlobalSigner = signer;
+
+  blockchainUrl =
+    blockchainUrl !== undefined && !null ? blockchainUrl : GlobalBlockchainUrl;
+  blocksyncUrl =
+    blocksyncUrl !== undefined && !null ? blocksyncUrl : GlobalBlocksyncUrl;
+  GlobaldashifyUrls = dashifyUrls;
 
   if (signer) assertSignerIsValid(signer);
 
