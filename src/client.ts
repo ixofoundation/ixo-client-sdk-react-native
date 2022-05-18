@@ -1,6 +1,4 @@
-const { format: fmt, inspect } = require('util');
-const debug = require('debug')('ixo-client-sdk');
-const fetch = require('isomorphic-unfetch');
+const { format: fmt } = require('util');
 const { coins } = require('@cosmjs/amino');
 const { sortedJsonStringify } = require('@cosmjs/amino/build/signdoc');
 const { fromBase64 } = require('@cosmjs/encoding');
@@ -16,6 +14,7 @@ const {
   sha256,
 } = require('@cosmjs/crypto');
 const { toBase64, Bech32 } = require('@cosmjs/encoding');
+import { create } from 'apisauce';
 
 let defaultCellnodeUrl = 'https://cellnode-pandora.ixo.world';
 
@@ -33,6 +32,20 @@ let GlobaldashifyUrls =
 
 let GlobalSigner: any = null;
 
+// GLOBAL API HANDLERS
+const blockChainFetchAPI = create({
+  baseURL: GlobalBlockchainUrl,
+  headers: { Accept: 'application/json' },
+});
+const cnFetchAPI = create({
+  baseURL: '',
+  headers: { Accept: 'application/json' },
+});
+const blockSyncFetchAPI = create({
+  baseURL: GlobalBlocksyncUrl,
+  headers: { Accept: 'application/json' },
+});
+
 export function makeClient(
   signer: any,
   blockchainUrl?: string,
@@ -47,13 +60,16 @@ export function makeClient(
     blocksyncUrl !== undefined && !null ? blocksyncUrl : GlobalBlocksyncUrl;
   GlobaldashifyUrls = dashifyUrls;
 
+  blockChainFetchAPI.setBaseURL(blockchainUrl);
+  blockSyncFetchAPI.setBaseURL(blocksyncUrl);
+
   if (signer) assertSignerIsValid(signer);
 
   const getSignerAccount = memoize((signerToUse: string | number) =>
       signer[signerToUse].getAccounts().then((as: any[]) => as[0])
     ),
     getNodeInfo = memoize(() =>
-      bcFetch('/node_info').then((body: { node_info: any }) => body.node_info)
+      bcFetchGet('/node_info').then((body: any) => body.node_info)
     ),
     sign = async (
       signerToUse: string,
@@ -115,7 +131,7 @@ export function makeClient(
       const { address } = await getSignerAccount(signerToUse),
         {
           account: { account_number, sequence },
-        } = await bcFetch('/cosmos/auth/v1beta1/accounts/' + address),
+        } = await bcFetchGet('/cosmos/auth/v1beta1/accounts/' + address),
         signDoc = {
           account_number,
           chain_id: (await getNodeInfo()).network,
@@ -125,7 +141,7 @@ export function makeClient(
           sequence,
         },
         { signature } = await sign(signerToUse, signDoc),
-        txResp = await bcFetch('/txs', {
+        txResp = await bcFetchPost('/txs', {
           method: 'POST',
           body: {
             tx: {
@@ -145,10 +161,8 @@ export function makeClient(
 
       return txResp;
     },
-    bcFetch = makeFetcher(blockchainUrl),
-    bsFetch = makeFetcher(blocksyncUrl),
     listEntities = async (type: string) => {
-      const ents = await bsFetch('/api/project/listProjects');
+      const ents = await bsFetchGet('/api/project/listProjects');
 
       if (!type) return ents;
 
@@ -156,7 +170,8 @@ export function makeClient(
         (e: { data: { [x: string]: string } }) => e.data['@type'] === type
       );
     },
-    getEntity = (did: string) => bsFetch('/api/project/getByProjectDid/' + did),
+    getEntity = (did: string) =>
+      bsFetchGet('/api/project/getByProjectDid/' + did),
     getEntityHead = async (projRecOrDid: any): Promise<any> => {
       if (typeof projRecOrDid === 'object') {
         const { projectDid } = projRecOrDid;
@@ -178,7 +193,6 @@ export function makeClient(
 
       return getEntityHead(await getEntity(projRecOrDid));
     },
-    cnFetch = makeFetcher(),
     cnRpc = async (target: string, dataCb: any, fetchOpts?: any) => {
       if (!signer)
         throw new Error(
@@ -239,7 +253,7 @@ export function makeClient(
 
   return {
     getSecpAccount: async () =>
-      await bcFetch(
+      await bcFetchGet(
         '/cosmos/auth/v1beta1/accounts/' +
           (
             await getSignerAccount('secp')
@@ -247,7 +261,7 @@ export function makeClient(
       ),
 
     getAgentAccount: async () =>
-      await bcFetch(
+      await bcFetchGet(
         '/cosmos/auth/v1beta1/accounts/' +
           (
             await getSignerAccount('agent')
@@ -255,7 +269,7 @@ export function makeClient(
       ),
 
     balances: async (accountType: any, denom: any) =>
-      await bcFetch(
+      await bcFetchGet(
         fmt(
           '/cosmos/bank/v1beta1/balances/%s' + (denom ? '/%s' : ''),
           (
@@ -265,11 +279,11 @@ export function makeClient(
         )
       ),
 
-    register: (pubKey: any) => {
+    register: (pubKey?: any) => {
       if (!signer)
         throw new Error(
           'The client needs to be initialized with a wallet / signer in order for this method to be used'
-        ); // eslint-disable-line max-len
+        );
 
       return signAndBroadcast('agent', {
         type: 'did/AddDid',
@@ -280,7 +294,7 @@ export function makeClient(
       });
     },
 
-    getDidDoc: (did: string) => bsFetch('/api/did/getByDid/' + did),
+    getDidDoc: (did: string) => bsFetchGet('/api/did/getByDid/' + did),
 
     listEntities,
 
@@ -329,7 +343,7 @@ export function makeClient(
         method: 'createPublic',
         data: { data, contentType },
         isPublic: true,
-        then: (data: string) => serviceEndpoint + '/public/' + data,
+        then: (data2: string) => serviceEndpoint + '/public/' + data2,
       }));
     },
 
@@ -343,7 +357,7 @@ export function makeClient(
       })),
 
     getProjectFundAddress: async (projDid: string) =>
-      (await bcFetch('/projectAccounts/' + projDid)).map[projDid],
+      (await bcFetchGet('/projectAccounts/' + projDid)).map[projDid],
 
     listAgents: (projRecOrDid: string) =>
       cnRpc(projRecOrDid, (projectDid: any) => ({
@@ -370,7 +384,7 @@ export function makeClient(
         data: { projectDid, agentDid, status, role, version },
       })),
 
-    listClaims: (projRecOrDid: string, tplId: any) =>
+    listClaims: (projRecOrDid: string, tplId?: any) =>
       cnRpc(projRecOrDid, (projectDid: any) => ({
         method: tplId ? 'listClaimsByTemplateId' : 'listClaims',
         tplName: 'list_claim',
@@ -427,13 +441,13 @@ export function makeClient(
 
     staking: {
       listValidators: (urlParams: any) =>
-        bcFetch('/staking/validators', { urlParams }),
+        bcFetchGet('/staking/validators', { urlParams }),
 
       getValidator: (validatorAddr: any) =>
-        bcFetch('/staking/validators/' + validatorAddr),
+        bcFetchGet('/staking/validators/' + validatorAddr),
 
       myDelegations: async () =>
-        await bcFetch(
+        await bcFetchGet(
           fmt(
             '/staking/delegators/%s/delegations',
             (
@@ -442,13 +456,13 @@ export function makeClient(
           )
         ),
 
-      pool: () => bcFetch('/staking/pool'),
+      pool: () => bcFetchGet('/staking/pool'),
 
       validatorDistribution: (validatorAddr: any) =>
-        bcFetch('/distribution/validators/' + validatorAddr),
+        bcFetchGet('/distribution/validators/' + validatorAddr),
 
       delegatorValidatorRewards: (delegatorAddr: any, validatorAddr: any) =>
-        bcFetch(
+        bcFetchGet(
           fmt(
             '/distribution/delegators/%s/rewards/%s',
             delegatorAddr,
@@ -457,7 +471,7 @@ export function makeClient(
         ),
 
       delegation: (delegatorAddr: any, validatorAddr: any) =>
-        bcFetch(
+        bcFetchGet(
           fmt(
             '/staking/delegators/%s/delegations/%s',
             delegatorAddr,
@@ -466,15 +480,15 @@ export function makeClient(
         ),
 
       delegatorDelegations: (delegatorAddr: any) =>
-        bcFetch(fmt('/staking/delegators/%s/delegations', delegatorAddr)),
+        bcFetchGet(fmt('/staking/delegators/%s/delegations', delegatorAddr)),
 
       delegatorUnbondingDelegations: (delegatorAddr: any) =>
-        bcFetch(
+        bcFetchGet(
           fmt('/staking/delegators/%s/unbonding_delegations', delegatorAddr)
         ),
 
       delegatorRewards: (delegatorAddr: any) =>
-        bcFetch(`/distribution/delegators/${delegatorAddr}/rewards`),
+        bcFetchGet(`/distribution/delegators/${delegatorAddr}/rewards`),
 
       delegate: async (validatorAddr: any, amount: any) =>
         await signAndBroadcast('secp', {
@@ -513,9 +527,9 @@ export function makeClient(
     },
 
     bonds: {
-      byId: (did: string) => bcFetch('/bonds/' + did),
+      byId: (did: string) => bcFetchGet('/bonds/' + did),
 
-      list: () => bcFetch('/bonds_detailed'),
+      list: () => bcFetchGet('/bonds_detailed'),
 
       buy: (
         bondDid: any,
@@ -571,11 +585,9 @@ export async function getTemplate(tplRecOrDid: string): Promise<any> {
     }
 
     return getEntityHead(
-      await makeFetcher('/api/project/getByProjectDid/' + projRecOrDid)
+      await makeFetcherGet('/api/project/getByProjectDid/' + projRecOrDid)
     );
   };
-
-  const cnFetch = makeFetcher();
 
   const cnRpc = async (target: string, dataCb: any, fetchOpts?: any) => {
       const getSignerAccount = memoize((signerToUse: string | number) =>
@@ -647,7 +659,7 @@ export async function getTemplate(tplRecOrDid: string): Promise<any> {
   const tplDoc =
     typeof tplRecOrDid === 'object'
       ? tplRecOrDid
-      : await makeFetcher('/api/project/getByProjectDid/' + tplRecOrDid);
+      : await makeFetcherGet('/api/project/getByProjectDid/' + tplRecOrDid);
 
   if (!tplDoc.data.page.content) {
     const { data: rawTplContent } = await getEntityFile(
@@ -684,60 +696,269 @@ export function assertSignerIsValid(signer: any): void {
     throw new Error('Invalid signer');
 }
 
-//todo
-export function makeFetcher(urlPrefix?: string): any {
-  async (
-    path: any,
-    { urlParams = {}, fullResponse = false, dryRun = false, ...fetchOpts }
-  ) => {
-    const urlParamsStr = new URLSearchParams(urlParams).toString(),
-      url = urlPrefix + path + (urlParamsStr ? '?' + urlParamsStr : ''),
-      rawBody = fetchOpts.body;
+export async function cnFetch(
+  url: string,
+  { ...options },
+  urlParams?: any,
+  fullResponse: boolean = false
+): Promise<any> {
+  const urlParamsStr = new URLSearchParams(urlParams).toString();
+  const modifiedUrl = url + (urlParamsStr ? '?' + urlParamsStr : '');
+  // used for debug
+  // const rawBody = options ? options.body : undefined;
 
-    fetchOpts = {
-      ...fetchOpts,
-      body: fetchOpts.body && sortedJsonStringify(fetchOpts.body),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        ...fetchOpts.headers,
-      },
-    };
-
-    if (dryRun) return { url, ...fetchOpts };
-
-    debug(
-      '> Request',
-      inspect({ url, ...fetchOpts, body: rawBody }, { depth: 10 })
-    );
-
-    const resp = await fetch(url, fetchOpts),
-      isJson = resp.headers.get('content-type').startsWith('application/json'),
-      body = await resp[isJson ? 'json' : 'text']();
-
-    debug(
-      '< Response',
-      inspect(
-        {
-          status: resp.status,
-          headers: Object.fromEntries(resp.headers.entries()),
-          body: body,
-        },
-        { depth: 10 }
-      )
-    );
-
-    return Promise[resp.ok ? 'resolve' : 'reject'](
-      fullResponse
-        ? {
-            status: resp.status,
-            headers: resp.headers,
-            body,
-          }
-        : body
-    );
+  const fetchOps = {
+    ...options,
+    body: options?.body && sortedJsonStringify(options?.body),
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
   };
+
+  const resp = await cnFetchAPI.post(modifiedUrl, fetchOps.body);
+
+  if (!resp.headers) {
+    throw new Error('Response is undefined');
+  }
+  if (resp.problem) {
+    throw new Error(resp.problem);
+  }
+  const body = resp.data;
+  return Promise[resp.ok ? 'resolve' : 'reject'](
+    fullResponse
+      ? {
+          status: resp.status,
+          headers: resp.headers,
+          body,
+        }
+      : body
+  );
 }
+
+export async function bcFetchGet(
+  url: string,
+  urlParams?: any,
+  fullResponse: boolean = false
+): Promise<any> {
+  const urlParamsStr = new URLSearchParams(urlParams).toString();
+  const modifiedUrl =
+    blockChainFetchAPI.getBaseURL() +
+    url +
+    (urlParamsStr ? '?' + urlParamsStr : '');
+  // used for debug
+  // const rawBody = options ? options.body : undefined;
+
+  const resp = await blockChainFetchAPI.get(modifiedUrl);
+
+  if (!resp.headers) {
+    throw new Error('Response is undefined');
+  }
+  const body = resp.data;
+  return Promise[resp.ok ? 'resolve' : 'reject'](
+    fullResponse
+      ? {
+          status: resp.status,
+          headers: resp.headers,
+          body,
+        }
+      : body
+  );
+}
+
+export async function bcFetchPost(
+  url: string,
+  { ...options },
+  urlParams?: any,
+  fullResponse: boolean = false
+): Promise<any> {
+  const urlParamsStr = new URLSearchParams(urlParams).toString();
+  const modifiedUrl =
+    blockChainFetchAPI.getBaseURL() +
+    url +
+    (urlParamsStr ? '?' + urlParamsStr : '');
+  // used for debug
+  // const rawBody = options ? options.body : undefined;
+
+  const fetchOps = {
+    ...options,
+    body: options?.body && sortedJsonStringify(options?.body),
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  };
+
+  const resp = await blockChainFetchAPI.post(modifiedUrl, fetchOps.body);
+
+  if (!resp.headers) {
+    throw new Error('Response is undefined');
+  }
+  const body = resp.data;
+  return Promise[resp.ok ? 'resolve' : 'reject'](
+    fullResponse
+      ? {
+          status: resp.status,
+          headers: resp.headers,
+          body,
+        }
+      : body
+  );
+}
+
+export async function bsFetchGet(
+  url: string,
+  urlParams?: any,
+  fullResponse: boolean = false
+): Promise<any> {
+  const urlParamsStr = new URLSearchParams(urlParams).toString();
+  const modifiedUrl =
+    blockSyncFetchAPI.getBaseURL() +
+    url +
+    (urlParamsStr ? '?' + urlParamsStr : '');
+  // used for debug
+  // const rawBody = options ? options.body : undefined;
+
+  const resp = await blockSyncFetchAPI.get(modifiedUrl);
+
+  if (!resp.headers) {
+    throw new Error('Response is undefined');
+  }
+  const body = resp.data;
+  return Promise[resp.ok ? 'resolve' : 'reject'](
+    fullResponse
+      ? {
+          status: resp.status,
+          headers: resp.headers,
+          body,
+        }
+      : body
+  );
+}
+
+export async function bsFetchPost(
+  url: string,
+  { ...options },
+  urlParams?: any,
+  fullResponse: boolean = false
+): Promise<any> {
+  const urlParamsStr = new URLSearchParams(urlParams).toString();
+  const modifiedUrl =
+    blockSyncFetchAPI.getBaseURL() +
+    url +
+    (urlParamsStr ? '?' + urlParamsStr : '');
+  // used for debug
+  // const rawBody = options ? options.body : undefined;
+
+  const fetchOps = {
+    ...options,
+    body: options?.body && sortedJsonStringify(options?.body),
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  };
+
+  const resp = await blockSyncFetchAPI.post(modifiedUrl, fetchOps.body);
+
+  if (!resp.headers) {
+    throw new Error('Response is undefined');
+  }
+  const body = resp.data;
+  return Promise[resp.ok ? 'resolve' : 'reject'](
+    fullResponse
+      ? {
+          status: resp.status,
+          headers: resp.headers,
+          body,
+        }
+      : body
+  );
+}
+
+export async function makeFetcherGet(
+  url: string,
+  urlParams?: any,
+  fullResponse: boolean = false
+): Promise<any> {
+  const urlParamsStr = new URLSearchParams(urlParams).toString();
+  const modifiedUrl = url + (urlParamsStr ? '?' + urlParamsStr : '');
+  // used for debug
+  // const rawBody = options ? options.body : undefined;
+
+  const resp = await cnFetchAPI.get(modifiedUrl);
+
+  if (!resp.headers) {
+    throw new Error('Response is undefined');
+  }
+  const body = resp.data;
+  return Promise[resp.ok ? 'resolve' : 'reject'](
+    fullResponse
+      ? {
+          status: resp.status,
+          headers: resp.headers,
+          body,
+        }
+      : body
+  );
+}
+
+// const makeFetcher =
+//   (urlPrefix = '') =>
+//   async (
+//     path: string,
+//     { urlParams, fullResponse = false, dryRun = false, ...fetchOpts }
+//   ) => {
+//     const urlParamsStr = new URLSearchParams(urlParams).toString(),
+//       url = urlPrefix + path + (urlParamsStr ? '?' + urlParamsStr : ''),
+//       rawBody = fetchOpts.body;
+
+//     fetchOpts = {
+//       ...fetchOpts,
+//       body: fetchOpts.body && sortedJsonStringify(fetchOpts.body),
+//       headers: {
+//         'Accept': 'application/json',
+//         'Content-Type': 'application/json',
+//         ...fetchOpts.headers,
+//       },
+//     };
+
+//     if (dryRun) return { url, ...fetchOpts };
+
+//     debug(
+//       '> Request',
+//       inspect({ url, ...fetchOpts, body: rawBody }, { depth: 10 })
+//     );
+
+//     const resp = await fetch(url, fetchOpts),
+//       isJson = resp.headers.get('content-type').startsWith('application/json'),
+//       body = await resp[isJson ? 'json' : 'text']();
+
+//     debug(
+//       '< Response',
+//       inspect(
+//         {
+//           status: resp.status,
+//           headers: Object.fromEntries(resp.headers.entries()),
+//           body: body,
+//         },
+//         { depth: 10 }
+//       )
+//     );
+
+//     return Promise[resp.ok ? 'resolve' : 'reject'](
+//       fullResponse
+//         ? {
+//             status: resp.status,
+//             headers: resp.headers,
+//             body,
+//           }
+//         : body
+//     );
+//   };
 
 export function generateTxId(): number {
   return Math.floor(Math.random() * 1000000 + 1);
@@ -838,7 +1059,7 @@ export function fromSerializableWallet(s: any) {
   };
 }
 
-/* @returns OfflineAminoSigner: https://github.com/cosmos/cosmjs/blob/98e91ae5fe699733497befef95204923c93a7373/packages/amino/src/signer.ts#L22-L38 */ // eslint-disable-line max-len
+/* @returns OfflineAminoSigner: https://github.com/cosmos/cosmjs/blob/98e91ae5fe699733497befef95204923c93a7373/packages/amino/src/signer.ts#L22-L38 */
 
 export function makeAgentWallet(
   mnemonic: any,

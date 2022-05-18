@@ -1,6 +1,6 @@
 {
   "name": "ixo-client-sdk-react-native",
-  "version": "0.1.6",
+  "version": "0.2.8",
   "description": "The IXO client-sdk library for react native",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -149,6 +149,8 @@
     "@cosmjs/amino": "^0.25.5",
     "@cosmjs/crypto": "^0.25.5",
     "@cosmjs/encoding": "^0.25.5",
+    "apisauce": "^2.1.5",
+    "axios": "^0.27.2",
     "bs58": "^4.0.1",
     "debug": "^4.3.1",
     "dotenv": "^16.0.0",
