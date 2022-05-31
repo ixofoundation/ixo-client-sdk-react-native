@@ -1,6 +1,6 @@
 {
   "name": "ixo-client-sdk-react-native",
-  "version": "0.2.8",
+  "version": "0.3.0",
   "description": "The IXO client-sdk library for react native",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
@@ -50,7 +50,9 @@
     "@commitlint/config-conventional": "^11.0.0",
     "@react-native-community/eslint-config": "^2.0.0",
     "@release-it/conventional-changelog": "^2.0.0",
+    "@types/bs58": "^4.0.1",
     "@types/jest": "^26.0.0",
+    "@types/lodash.memoize": "^4.1.7",
     "@types/react": "^16.9.19",
     "@types/react-native": "0.62.13",
     "commitlint": "^11.0.0",
@@ -146,7 +148,7 @@
     ]
   },
   "dependencies": {
-    "@cosmjs/amino": "^0.25.5",
+    "@cosmjs/amino": "^0.28.4",
     "@cosmjs/crypto": "^0.25.5",
     "@cosmjs/encoding": "^0.25.5",
     "apisauce": "^2.1.5",
