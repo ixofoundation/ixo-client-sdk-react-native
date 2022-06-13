@@ -1,18 +1,12 @@
-/* eslint-disable camelcase */
+import { serializeSignDoc, coins, Secp256k1HdWallet } from '@cosmjs/amino';
 import { sortedJsonStringify } from '@cosmjs/amino/build/signdoc';
+import { sha256 } from '@cosmjs/crypto';
 import { fromBase64, toBase64, Bech32 } from '@cosmjs/encoding';
-import memoize from 'lodash.memoize';
-import base58 from 'bs58';
-import { serializeSignDoc, coins } from '@cosmjs/amino';
-import {
-  EnglishMnemonic,
-  pathToString,
-  sha256,
-  stringToPath,
-} from '@cosmjs/crypto';
 import { create } from 'apisauce';
-import { Secp256k1HdWallet } from './customSecp256k1hdwallet';
-const sovrin = require('sovrin-did');
+import base58 from 'bs58';
+import memoize from 'lodash.memoize';
+import { fromSeed, signMessage } from './sovrin';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const defaultCellnodeUrl = 'https://cellnode-pandora.ixo.earth';
 const defaultBlockScan = 'https://blockscan-pandora.ixo.earth';
@@ -710,7 +704,7 @@ export async function cnFetch(
     },
   };
 
-  const resp = await cnFetchAPI.post(modifiedUrl, fetchOps.body);
+  const resp: any = await cnFetchAPI.post(modifiedUrl, fetchOps.body);
 
   if (!resp.headers) {
     throw new Error('Response is undefined');
@@ -719,15 +713,17 @@ export async function cnFetch(
     throw new Error(resp.problem);
   }
   const body = resp.data;
-  return Promise[resp.ok ? 'resolve' : 'reject'](
-    fullResponse
-      ? {
-          status: resp.status,
-          headers: resp.headers,
-          body,
-        }
-      : body
-  );
+  if (resp.ok) {
+    return new Promise(
+      fullResponse
+        ? {
+            status: resp.status,
+            headers: resp.headers,
+            body,
+          }
+        : body
+    );
+  }
 }
 
 export async function bcFetchGet(
@@ -743,21 +739,23 @@ export async function bcFetchGet(
   // used for debug
   // const rawBody = options ? options.body : undefined;
 
-  const resp = await blockChainFetchAPI.get(modifiedUrl);
+  const resp: any = await blockChainFetchAPI.get(modifiedUrl);
 
   if (!resp.headers) {
     throw new Error('Response is undefined');
   }
   const body = resp.data;
-  return Promise[resp.ok ? 'resolve' : 'reject'](
-    fullResponse
-      ? {
-          status: resp.status,
-          headers: resp.headers,
-          body,
-        }
-      : body
-  );
+  if (resp.ok) {
+    return new Promise(
+      fullResponse
+        ? {
+            status: resp.status,
+            headers: resp.headers,
+            body,
+          }
+        : body
+    );
+  }
 }
 
 export async function blockScanFetchGet(
@@ -773,21 +771,23 @@ export async function blockScanFetchGet(
   // used for debug
   // const rawBody = options ? options.body : undefined;
 
-  const resp = await blockScanFetchAPI.get(modifiedUrl);
+  const resp: any = await blockScanFetchAPI.get(modifiedUrl);
 
   if (!resp.headers) {
     throw new Error('Response is undefined');
   }
   const body = resp.data;
-  return Promise[resp.ok ? 'resolve' : 'reject'](
-    fullResponse
-      ? {
-          status: resp.status,
-          headers: resp.headers,
-          body,
-        }
-      : body
-  );
+  if (resp.ok) {
+    return new Promise(
+      fullResponse
+        ? {
+            status: resp.status,
+            headers: resp.headers,
+            body,
+          }
+        : body
+    );
+  }
 }
 
 export async function bcFetchPost(
@@ -814,21 +814,23 @@ export async function bcFetchPost(
     },
   };
 
-  const resp = await blockChainFetchAPI.post(modifiedUrl, fetchOps.body);
+  const resp: any = await blockChainFetchAPI.post(modifiedUrl, fetchOps.body);
 
   if (!resp.headers) {
     throw new Error('Response is undefined');
   }
   const body = resp.data;
-  return Promise[resp.ok ? 'resolve' : 'reject'](
-    fullResponse
-      ? {
-          status: resp.status,
-          headers: resp.headers,
-          body,
-        }
-      : body
-  );
+  if (resp.ok) {
+    return new Promise(
+      fullResponse
+        ? {
+            status: resp.status,
+            headers: resp.headers,
+            body,
+          }
+        : body
+    );
+  }
 }
 
 export async function bsFetchGet(
@@ -844,21 +846,23 @@ export async function bsFetchGet(
   // used for debug
   // const rawBody = options ? options.body : undefined;
 
-  const resp = await blockSyncFetchAPI.get(modifiedUrl);
+  const resp: any = await blockSyncFetchAPI.get(modifiedUrl);
 
   if (!resp.headers) {
     throw new Error('Response is undefined');
   }
   const body = resp.data;
-  return Promise[resp.ok ? 'resolve' : 'reject'](
-    fullResponse
-      ? {
-          status: resp.status,
-          headers: resp.headers,
-          body,
-        }
-      : body
-  );
+  if (resp.ok) {
+    return new Promise(
+      fullResponse
+        ? {
+            status: resp.status,
+            headers: resp.headers,
+            body,
+          }
+        : body
+    );
+  }
 }
 
 export async function bsFetchPost(
@@ -885,21 +889,23 @@ export async function bsFetchPost(
     },
   };
 
-  const resp = await blockSyncFetchAPI.post(modifiedUrl, fetchOps.body);
+  const resp: any = await blockSyncFetchAPI.post(modifiedUrl, fetchOps.body);
 
   if (!resp.headers) {
     throw new Error('Response is undefined');
   }
   const body = resp.data;
-  return Promise[resp.ok ? 'resolve' : 'reject'](
-    fullResponse
-      ? {
-          status: resp.status,
-          headers: resp.headers,
-          body,
-        }
-      : body
-  );
+  if (resp.ok) {
+    return new Promise(
+      fullResponse
+        ? {
+            status: resp.status,
+            headers: resp.headers,
+            body,
+          }
+        : body
+    );
+  }
 }
 
 export async function makeFetcherGet(
@@ -912,21 +918,23 @@ export async function makeFetcherGet(
   // used for debug
   // const rawBody = options ? options.body : undefined;
 
-  const resp = await cnFetchAPI.get(modifiedUrl);
+  const resp: any = await cnFetchAPI.get(modifiedUrl);
 
   if (!resp.headers) {
     throw new Error('Response is undefined');
   }
   const body = resp.data;
-  return Promise[resp.ok ? 'resolve' : 'reject'](
-    fullResponse
-      ? {
-          status: resp.status,
-          headers: resp.headers,
-          body,
-        }
-      : body
-  );
+  if (resp.ok) {
+    return new Promise(
+      fullResponse
+        ? {
+            status: resp.status,
+            headers: resp.headers,
+            body,
+          }
+        : body
+    );
+  }
 }
 
 export function generateTxId(): number {
@@ -970,14 +978,29 @@ export function dashifyUrl(urlStr: string): string {
   );
   return urlStr;
 }
-
+// This function is used to check if the string being passed in
+// is a mnemonic or a serialized wallet
+function isJsonString(str: string) {
+  try {
+    JSON.parse(str);
+  } catch (e) {
+    return false;
+  }
+  return true;
+}
 // wallet
-export async function makeWallet(src: any, didPrefix = 'did:ixo:') {
+export async function makeWallet(
+  src: any,
+  didPrefix = 'did:ixo:',
+  walletPassword: string
+) {
   let secp: Secp256k1HdWallet;
   let agent: any;
-  if (typeof src === 'object' && !Array.isArray(src) && src != null) {
-    ({ secp, agent } = fromSerializableWallet(src));
-    const toJSON = () => toSerializableWallet({ secp, agent });
+  if (isJsonString(src)) {
+    secp = await Secp256k1HdWallet.deserialize(src, walletPassword);
+    const toJSON = () => secp.serialize(walletPassword);
+    agent = await makeAgentWallet(secp.mnemonic, undefined, didPrefix);
+    setWalletToStorage(await toJSON());
     GlobalSigner = { secp, agent, toJSON };
     return { secp, agent, toJSON };
   } else {
@@ -993,52 +1016,16 @@ export async function makeWallet(src: any, didPrefix = 'did:ixo:') {
       // See note [1]
     }
     agent = await makeAgentWallet(secp.mnemonic, undefined, didPrefix);
-    const toJSON = () => toSerializableWallet({ secp, agent });
+    const toJSON = async () => await secp.serialize(walletPassword);
     GlobalSigner = { secp, agent, toJSON };
-    return { secp, agent, toJSON };
+    setWalletToStorage(await toJSON());
+    return { secp: secp, agent: agent, toJSON: toJSON };
   }
 }
 
-export function toSerializableWallet(w: { secp: any; agent: any }): any {
-  return {
-    secp: {
-      mnemonic: w.secp.mnemonic,
-      seed: base58.encode(w.secp.seed),
-      accounts: w.secp.accounts.map((a: { hdPath: any }) => ({
-        ...a,
-        hdPath: pathToString(a.hdPath),
-      })),
-    },
-    agent: {
-      mnemonic: w.agent.mnemonic,
-      didPrefix: w.agent.didPrefix,
-      didDoc: w.agent.didDoc,
-    },
-  };
-}
-export function fromSerializableWallet(s: any) {
-  return {
-    secp: new Secp256k1HdWallet(
-      s.secp.mnemonic && new EnglishMnemonic(s.secp.mnemonic),
-
-      {
-        seed: Uint8Array.from(base58.decode(s.secp.seed)),
-        prefix: s.secp.accounts[0].prefix,
-        hdPaths: s.secp.accounts.map((a: { hdPath: any }) =>
-          stringToPath(a.hdPath)
-        ),
-      }
-    ),
-
-    agent: makeAgentWallet(s.agent.mnemonic, s.agent.didDoc, s.agent.didPrefix),
-  };
-}
-
-/* @returns OfflineAminoSigner: https://github.com/cosmos/cosmjs/blob/98e91ae5fe699733497befef95204923c93a7373/packages/amino/src/signer.ts#L22-L38 */
-
 export function makeAgentWallet(
   mnemonic: any,
-  didDoc = sovrin.fromSeed(sha256(mnemonic).slice(0, 32)),
+  didDoc = fromSeed(sha256(mnemonic).slice(0, 32)),
   didPrefix = 'did:ixo:'
 ) {
   return {
@@ -1068,7 +1055,7 @@ export function makeAgentWallet(
       if (!account)
         throw new Error(`Address ${signerAddress} not found in wallet`);
 
-      const fullSignature = sovrin.signMessage(
+      const fullSignature = signMessage(
         serializeSignDoc(signDoc),
         didDoc.secret.signKey,
         didDoc.verifyKey
@@ -1089,6 +1076,21 @@ export function makeAgentWallet(
       };
     },
   };
+}
+
+export async function getWalletFromStorage() {
+  let wallet = null;
+  try {
+    wallet = await AsyncStorage.getItem('WALLET');
+  } catch (e) {}
+  if (wallet !== null) {
+    return wallet;
+  } else {
+    return 'WALLET NOT IN STORAGE';
+  }
+}
+async function setWalletToStorage(wallet: string) {
+  await AsyncStorage.setItem('WALLET', wallet);
 }
 
 // // Notes

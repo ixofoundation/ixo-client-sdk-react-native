@@ -50,6 +50,7 @@
     "@commitlint/config-conventional": "^11.0.0",
     "@react-native-community/eslint-config": "^2.0.0",
     "@release-it/conventional-changelog": "^2.0.0",
+    "@types/bs58": "^4.0.1",
     "@types/jest": "^26.0.0",
     "@types/react": "^16.9.19",
     "@types/react-native": "0.62.13",
@@ -146,9 +147,12 @@
     ]
   },
   "dependencies": {
-    "@cosmjs/amino": "^0.25.5",
-    "@cosmjs/crypto": "^0.25.5",
-    "@cosmjs/encoding": "^0.25.5",
+    "@cosmjs/amino": "^0.28.4",
+    "@cosmjs/crypto": "^0.28.6",
+    "@cosmjs/encoding": "^0.28.4",
+    "@types/lodash.memoize": "^4.1.7",
+    "@react-native-async-storage/async-storage": "^1.17.6",
+    "apisauce": "^2.1.5",
     "bs58": "^4.0.1",
     "debug": "^4.3.1",
     "dotenv": "^16.0.0",
