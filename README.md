@@ -11,7 +11,7 @@ npm install client-sdk
 ## Usage
 
 ```js
-import {makeClient} from ixo-client-sdk-react-native
+import { makeClient, makeWallet } from 'client-sdk';
 
 ```
 
